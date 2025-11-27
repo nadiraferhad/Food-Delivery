@@ -1,8 +1,11 @@
 pipeline {
     agent any
 
+    tools {
+        nodejs 'NodeJS 20'  // Must match the name in Jenkins global tools
+    }
+
     environment {
-        NODEJS_TOOL = "NodeJS 20"          // Name of NodeJS installation in Jenkins global tools
         BACKEND_DIR = "backend"
         FRONTEND_DIR = "frontend"
         DOCKER_IMAGE = "nadiraferhad/food-delivery:latest"
@@ -16,45 +19,29 @@ pipeline {
             }
         }
 
-        stage('Setup Node.js') {
-            steps {
-                echo "Using Node.js from Jenkins NodeJS Tool: ${NODEJS_TOOL}"
-                nodejs("${NODEJS_TOOL}") {
-                    sh 'node -v'
-                    sh 'npm -v'
-                }
-            }
-        }
-
         stage('Install Dependencies') {
             steps {
-                nodejs("${NODEJS_TOOL}") {
-                    dir("${BACKEND_DIR}") {
-                        sh 'npm install'
-                    }
-                    dir("${FRONTEND_DIR}") {
-                        sh 'npm install'
-                    }
+                dir("${BACKEND_DIR}") {
+                    sh 'npm install'
+                }
+                dir("${FRONTEND_DIR}") {
+                    sh 'npm install'
                 }
             }
         }
 
         stage('Build Frontend') {
             steps {
-                nodejs("${NODEJS_TOOL}") {
-                    dir("${FRONTEND_DIR}") {
-                        sh 'npm run build'
-                    }
+                dir("${FRONTEND_DIR}") {
+                    sh 'npm run build'
                 }
             }
         }
 
         stage('Run Backend Tests') {
             steps {
-                nodejs("${NODEJS_TOOL}") {
-                    dir("${BACKEND_DIR}") {
-                        sh 'npm test || echo "No tests configured"'
-                    }
+                dir("${BACKEND_DIR}") {
+                    sh 'npm test || echo "No tests configured"'
                 }
             }
         }
@@ -71,7 +58,6 @@ pipeline {
                 expression { return env.PUSH_DOCKER == 'true' }
             }
             steps {
-                echo "Pushing Docker image to registry..."
                 withCredentials([usernamePassword(credentialsId: 'dockerhub-creds', usernameVariable: 'DOCKER_USER', passwordVariable: 'DOCKER_PASS')]) {
                     sh "echo $DOCKER_PASS | docker login -u $DOCKER_USER --password-stdin"
                     sh "docker push ${DOCKER_IMAGE}"
@@ -83,23 +69,6 @@ pipeline {
             steps {
                 echo "Archiving frontend build..."
                 archiveArtifacts artifacts: "${FRONTEND_DIR}/dist/**", allowEmptyArchive: true
-            }
-        }
-
-        stage('Push Changes to GitHub (Optional)') {
-            when {
-                expression { return env.PUSH_GIT == 'true' }
-            }
-            steps {
-                withCredentials([usernamePassword(credentialsId: 'github-creds', usernameVariable: 'GIT_USER', passwordVariable: 'GIT_PASS')]) {
-                    sh """
-                        git config user.name "Jenkins"
-                        git config user.email "jenkins@local"
-                        git add .
-                        git commit -m "Automated commit from Jenkins"
-                        git push https://${GIT_USER}:${GIT_PASS}@github.com/nadiraferhad/Food-Delivery.git HEAD:main
-                    """
-                }
             }
         }
     }

@@ -1,14 +1,10 @@
 pipeline {
     agent any
 
-    tools {
-        nodejs 'NodeJS 20'  // Must match the name in Jenkins global tools
-    }
-
     environment {
+        NODEJS_TOOL = "NodeJS 20"    // NodeJS installation name in Jenkins
         BACKEND_DIR = "backend"
         FRONTEND_DIR = "frontend"
-        DOCKER_IMAGE = "nadiraferhad/food-delivery:latest"
     }
 
     stages {
@@ -19,48 +15,45 @@ pipeline {
             }
         }
 
+        stage('Setup Node.js') {
+            steps {
+                echo "Using Node.js from Jenkins NodeJS Tool: ${NODEJS_TOOL}"
+                nodejs("${NODEJS_TOOL}") {
+                    sh 'node -v'
+                    sh 'npm -v'
+                }
+            }
+        }
+
         stage('Install Dependencies') {
             steps {
-                dir("${BACKEND_DIR}") {
-                    sh 'npm install'
-                }
-                dir("${FRONTEND_DIR}") {
-                    sh 'npm install'
+                nodejs("${NODEJS_TOOL}") {
+                    dir("${BACKEND_DIR}") {
+                        sh 'npm install'
+                    }
+                    dir("${FRONTEND_DIR}") {
+                        sh 'npm install'
+                    }
                 }
             }
         }
 
         stage('Build Frontend') {
             steps {
-                dir("${FRONTEND_DIR}") {
-                    sh 'npm run build'
+                nodejs("${NODEJS_TOOL}") {
+                    dir("${FRONTEND_DIR}") {
+                        sh 'npm run build'
+                    }
                 }
             }
         }
 
         stage('Run Backend Tests') {
             steps {
-                dir("${BACKEND_DIR}") {
-                    sh 'npm test || echo "No tests configured"'
-                }
-            }
-        }
-
-        stage('Build Docker Image') {
-            steps {
-                echo "Building Docker image: ${DOCKER_IMAGE}"
-                sh "docker build -t ${DOCKER_IMAGE} ."
-            }
-        }
-
-        stage('Push to Docker Hub (Optional)') {
-            when {
-                expression { return env.PUSH_DOCKER == 'true' }
-            }
-            steps {
-                withCredentials([usernamePassword(credentialsId: 'dockerhub-creds', usernameVariable: 'DOCKER_USER', passwordVariable: 'DOCKER_PASS')]) {
-                    sh "echo $DOCKER_PASS | docker login -u $DOCKER_USER --password-stdin"
-                    sh "docker push ${DOCKER_IMAGE}"
+                nodejs("${NODEJS_TOOL}") {
+                    dir("${BACKEND_DIR}") {
+                        sh 'npm test || echo "No tests configured"'
+                    }
                 }
             }
         }

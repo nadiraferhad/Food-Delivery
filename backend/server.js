@@ -1,22 +1,24 @@
 import express from "express";
 import cors from "cors";
-import { connectDB } from "./config/db.js";
 import foodRouter from "./routes/foodRoute.js";
 import userRouter from "./routes/userRoute.js";
-import "dotenv/config";
 import cartRouter from "./routes/cartRoute.js";
 import orderRouter from "./routes/orderRoute.js";
+import { db } from "./config/db.js";
+import "dotenv/config";
 
 // app config
 const app = express();
-const port =process.env.PORT || 4000;
+const port = process.env.PORT || 4000;
 
-//middlewares
+// middlewares
 app.use(express.json());
 app.use(cors());
 
-// DB connection
-connectDB();
+// MySQL Connection
+db.getConnection()
+  .then(() => console.log("MySQL Connected"))
+  .catch(err => console.error("DB Error:", err));
 
 // api endpoints
 app.use("/api/food", foodRouter);

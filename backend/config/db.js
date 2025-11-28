@@ -1,9 +1,8 @@
-import mongoose from "mongoose";
+import mysql from "mysql2/promise";
 
-export const connectDB = async () => {
-  await mongoose
-    .connect(
-      process.env.MONGO_URL
-    )
-    .then(() =>console.log("DB Connected"));
-};
+export const db = mysql.createPool({
+  host: "localhost",
+  user: "root",
+  password: "nadira",   // Your MySQL password
+  database: "fooddb"
+});

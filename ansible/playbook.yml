@@ -1,0 +1,91 @@
+---
+- name: Deploy Fullstack Food Delivery Project Locally
+  hosts: local
+  become: yes
+  vars:
+    frontend_image: food-frontend:latest
+    backend_image: food-backend:latest
+    mysql_image: mysql:8.0
+    mysql_root_password: rootpassword
+    mysql_database: food_delivery
+
+  tasks:
+
+    - name: Ensure Docker is installed
+      apt:
+        name: docker.io
+        state: present
+        update_cache: yes
+
+    - name: Ensure Docker service is running
+      service:
+        name: docker
+        state: started
+        enabled: yes
+
+    - name: Ensure Docker Python module is installed
+      pip:
+        name: docker
+        executable: pip3
+
+    # ------------------------
+    # MySQL container
+    # ------------------------
+    - name: Run MySQL container
+      docker_container:
+        name: mysql_db
+        image: "{{ mysql_image }}"
+        state: started
+        restart_policy: always
+        env:
+          MYSQL_ROOT_PASSWORD: "{{ mysql_root_password }}"
+          MYSQL_DATABASE: "{{ mysql_database }}"
+        ports:
+          - "3306:3306"
+
+    # ------------------------
+    # Backend container
+    # ------------------------
+    - name: Build backend Docker image
+      docker_image:
+        build:
+          path: ../backend
+        name: "{{ backend_image }}"
+        state: present
+
+    - name: Run backend container
+      docker_container:
+        name: backend_app
+        image: "{{ backend_image }}"
+        state: started
+        restart_policy: always
+        env:
+          DB_HOST: mysql_db
+          DB_USER: root
+          DB_PASSWORD: "{{ mysql_root_password }}"
+          DB_NAME: "{{ mysql_database }}"
+        ports:
+          - "8080:8080"
+        links:
+          - mysql_db:mysql_db
+
+    # ------------------------
+    # Frontend container
+    # ------------------------
+    - name: Build frontend Docker image
+      docker_image:
+        build:
+          path: ../frontend
+        name: "{{ frontend_image }}"
+        state: present
+
+    - name: Run frontend container
+      docker_container:
+        name: frontend_app
+        image: "{{ frontend_image }}"
+        state: started
+        restart_policy: always
+        ports:
+          - "3000:3000"
+        links:
+          - backend_app:backend_app
